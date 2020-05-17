@@ -4,11 +4,13 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using KModkit;
+using System.Text.RegularExpressions;
 
 public class passcodesScript : MonoBehaviour {
 
     public KMAudio Audio;
     public KMBombInfo bomb;
+    public KMColorblindMode Colorblind;
 
     public KMSelectable[] buttons;
     public TextMesh[] buttonsText;
@@ -31,11 +33,14 @@ public class passcodesScript : MonoBehaviour {
     private int Button9is = 10;
     private int TempDigit = -1;
 
+    public Material backboardStart;
+    public Material backboardActivate;
     public Material backboardOption;
     public Material[] ledOptions;
     public Renderer[] leds;
     public Light[] ledLights;
     public Color[] lightColors;
+    public TextMesh[] cbTexts;
 
     private int FivesAndSevens = 0;
     private bool IsThereVowel = false;
@@ -50,6 +55,7 @@ public class passcodesScript : MonoBehaviour {
 
     private string tempText;
 
+    private string[] colorNames = new string[] { "Blue", "Red", "Yellow", "Green" };
     private string[] nmbrLttrs0;
     private string[] nmbrLttrs1;
     private string[] nmbrLttrs2;
@@ -82,6 +88,8 @@ public class passcodesScript : MonoBehaviour {
     private int currentDigit = 6;
     private int maxDigit = 0;
 
+    private bool colorblindActive;
+
     static int moduleIdCounter = 1;
     int moduleId;
     private bool moduleSolved;
@@ -94,7 +102,14 @@ public class passcodesScript : MonoBehaviour {
             KMSelectable pressedButton = button;
             button.OnInteract += delegate () { ButtonPress(pressedButton); return false; };
         }
-
+        backBoard.GetComponent<MeshRenderer>().material = backboardStart;
+        ledLights[0].enabled = false;
+        ledLights[1].enabled = false;
+        ledLights[2].enabled = false;
+        ledLights[3].enabled = false;
+        ledLights[4].enabled = false;
+        ledLights[5].enabled = false;
+        GetComponent<KMBombModule>().OnActivate += Activate;
     }
 
     void Start()
@@ -109,7 +124,26 @@ public class passcodesScript : MonoBehaviour {
         PickLetterOfButton();
         getDecasecondOnClock();
         GetCorrectAnswers();
-        LogCorrectAnswres();
+        LogCorrectAnswers();
+    }
+
+    void Activate()
+    {
+        if (Colorblind.ColorblindModeActive)
+        {
+            colorblindActive = true;
+            for (int i = 0; i < cbTexts.Length; i++)
+            {
+                cbTexts[i].text = colorNames[Array.IndexOf(lightColors, ledLights[i].color)].ElementAt(0).ToString();
+            }
+        }
+        backBoard.GetComponent<MeshRenderer>().material = backboardActivate;
+        ledLights[0].enabled = true;
+        ledLights[1].enabled = true;
+        ledLights[2].enabled = true;
+        ledLights[3].enabled = true;
+        ledLights[4].enabled = true;
+        ledLights[5].enabled = true;
     }
 
     void ResetValues()
@@ -170,7 +204,7 @@ public class passcodesScript : MonoBehaviour {
 
     void PickLetterOfButton()
     {
-        nmbrLttr0 = nmbrLttrs0[UnityEngine.Random.Range(0,nmbrLttrs0.Length)];
+        nmbrLttr0 = nmbrLttrs0[UnityEngine.Random.Range(0, nmbrLttrs0.Length)];
         nmbrLttr1 = nmbrLttrs1[UnityEngine.Random.Range(0, nmbrLttrs1.Length)];
         nmbrLttr2 = nmbrLttrs2[UnityEngine.Random.Range(0, nmbrLttrs2.Length)];
         nmbrLttr3 = nmbrLttrs3[UnityEngine.Random.Range(0, nmbrLttrs3.Length)];
@@ -696,15 +730,9 @@ public class passcodesScript : MonoBehaviour {
     {
         timeInSeconds = TimeSpan.FromSeconds((int)bomb.GetTime());
         decasecondOnClock = (int)((float)timeInSeconds.Seconds / (float)10);
-        if (numberOfRelevantInd == 1 || numberOfRelevantInd == 2)
+        if (numberOfRelevantInd == 1 || numberOfRelevantInd == 2 && decasecondOnClock != 5)
         {
             decasecondOnClock = decasecondOnClock * 2;
-            tempDecasecond = decasecondOnClock;
-            while (tempDecasecond >= 10)
-            {
-                tempDecasecond /= 10;
-            }
-            decasecondOnClock = (int)tempDecasecond;
         }
     }
 
@@ -724,6 +752,10 @@ public class passcodesScript : MonoBehaviour {
         if (IsThereVowel == true)
         {
             secondDigit = bomb.GetPortCount(Port.RJ45) + 1;
+            if (secondDigit > 9)
+            {
+                secondDigit = 8;
+            }
         }
         else
         {
@@ -749,16 +781,42 @@ public class passcodesScript : MonoBehaviour {
         GetCorrectAnswers();
     }
 
-    void LogCorrectAnswres()
+    void LogCorrectAnswers()
     {
+        string[] allletters = new string[] { nmbrLttr0, nmbrLttr1, nmbrLttr2, nmbrLttr3, nmbrLttr4, nmbrLttr5, nmbrLttr6, nmbrLttr7, nmbrLttr8, nmbrLttr9 };
+        string letters = "";
         if (currentDigit == 1)
         {
-            Debug.Log("[Passcodes #" + moduleId + "] The passcode is four digits long and is "+correctAnswers4[0] + correctAnswers4[1] + correctAnswers4[2] + "#. (# being the number in the decaseconds position)");
+            Debug.LogFormat("[Passcodes #{0}] Passcode Digit 1: Number of batteries = {1}", moduleId, correctAnswers4[0]);
+            Debug.LogFormat("[Passcodes #{0}] Passcode Digit 2: Lit indicator with vowel {1} = {2}{3}", moduleId, correctAnswers4[1] != 0 ? "present" : "not present", correctAnswers4[1] != 0 ? "Number of RJ-45 ports + 1 = " + bomb.GetPortCount(Port.RJ45) + " + 1 = " + (bomb.GetPortCount(Port.RJ45) + 1) : "0", bomb.GetPortCount(Port.RJ45) + 1 > 9 ? " (answer is greater than 9) = 8" : "");
+            Debug.LogFormat("[Passcodes #{0}] Passcode Digit 3: Number of AA batteries + Number of PS/2 ports + 2 = {1} + {2} + 2 = {3}{4}", moduleId, bomb.GetBatteryCount(Battery.AA), bomb.GetPortCount(Port.PS2), bomb.GetBatteryCount(Battery.AA) + bomb.GetPortCount(Port.PS2) + 2, bomb.GetBatteryCount(Battery.AA) + bomb.GetPortCount(Port.PS2) + 2 > 9 ? " (answer is greater than 9) = 7" : "");
+            Debug.LogFormat("[Passcodes #{0}] Passcode Digit 4: The tens digit on the bomb's timer with {1} of the indicators IND, NSA, MSA, BOB, or FRK and with the tens digit not being 5 = #{2}", moduleId, numberOfRelevantInd == 1 || numberOfRelevantInd == 2 ? "one or two" : "none or more than 2", numberOfRelevantInd == 1 || numberOfRelevantInd == 2 ? " * 2 (if the tens digit is 5 then this is just #)" : " (if the tens digit is 5 then this is still #)");
+            Debug.LogFormat("[Passcodes #{0}] Passcode as Digits: {1}#", moduleId, correctAnswers4[0]+""+correctAnswers4[1]+""+correctAnswers4[2]);
+            for (int i = 0; i < 3; i++)
+            {
+                letters += allletters[correctAnswers4[i]];
+            }
+            letters = letters.ToUpper();
+            letters += "# (# depends on Passcode Digit 4)";
         }
         if (currentDigit == 0)
         {
-            Debug.Log("[Passcodes #" + moduleId + "] The passcode is six digits long and is " + correctAnswers6[0] + correctAnswers6[1] + correctAnswers6[2] + correctAnswers6[3] + correctAnswers6[4] + correctAnswers6[5] + ".");
+            Debug.LogFormat("[Passcodes #{0}] Passcode Digit 1: 8", moduleId);
+            Debug.LogFormat("[Passcodes #{0}] Passcode Digit 2: Number of 5's and 7's in the serial number = {1}", moduleId, correctAnswers6[1]);
+            Debug.LogFormat("[Passcodes #{0}] Passcode Digit 3: Passcode Digit 1 - Passcode Digit 2 = {1} - {2} = {3}", moduleId, correctAnswers6[0], correctAnswers6[1], correctAnswers6[2]);
+            Debug.LogFormat("[Passcodes #{0}] Passcode Digit 4: Number of AA batteries + Number of PS/2 ports + 2 - 1 = {1} + {2} + 2 - 1 = {3}{4}", moduleId, bomb.GetBatteryCount(Battery.AA), bomb.GetPortCount(Port.PS2), bomb.GetBatteryCount(Battery.AA) + bomb.GetPortCount(Port.PS2) + 2, bomb.GetBatteryCount(Battery.AA) + bomb.GetPortCount(Port.PS2) + 2 > 9 ? " (answer is greater than 9) = 7 - 1 = 6" : " - 1 = " + correctAnswers6[3]);
+            Debug.LogFormat("[Passcodes #{0}] Passcode Digit 5: Lit indicator with vowel {1} = {2}{3}", moduleId, IsThereVowel ? "present" : "not present", IsThereVowel ? "Number of RJ-45 ports + 1 = " + bomb.GetPortCount(Port.RJ45) + " + 1 = " + (bomb.GetPortCount(Port.RJ45) + 1) : "0", bomb.GetPortCount(Port.RJ45) + 1 > 9 ? " (answer is greater than 9) = 8 + 1 = 9" : " + 1 = " + correctAnswers6[4]);
+            Debug.LogFormat("[Passcodes #{0}] Passcode Digit 6: 0 strikes = 9 | Greater than or equal to 1 strikes = (Number of strikes + 1) * Number of strikes - 1 = #", moduleId);
+            Debug.LogFormat("[Passcodes #{0}] Passcode as Digits: {1}#", moduleId, correctAnswers6[0]+""+correctAnswers6[1]+""+correctAnswers6[2]+""+ correctAnswers6[3]+""+correctAnswers6[4]);
+            for (int i = 0; i < 5; i++)
+            {
+                letters += allletters[correctAnswers6[i]];
+            }
+            letters = letters.ToUpper();
+            letters += "# (# depends on Passcode Digit 6)";
         }
+        Debug.LogFormat("[Passcodes #{0}] The number of ports on the bomb is {1}, therefore the {2} table from the manual will be used to enter the passcode as letters", moduleId, bomb.GetPortCount() % 2 != 0 ? "not even" : "not odd", bomb.GetPortCount() % 2 != 0 ? "top" : "bottom");
+        Debug.LogFormat("[Passcodes #{0}] Passcode as Letters: {1}", moduleId, letters);
     }
 
     void GetCorrectAnswers()
@@ -786,7 +844,7 @@ public class passcodesScript : MonoBehaviour {
                 {
                     correctAnswers6[5] = ((correctAnswers6[5]) % 5) * 2;
                 }
-            }   
+            }
         }
         else
         {
@@ -868,6 +926,13 @@ public class passcodesScript : MonoBehaviour {
             ledLights[4].color = lightColors[1];
             ledLights[5].color = lightColors[1];
         }
+        if (colorblindActive)
+        {
+            for (int i = 0; i < cbTexts.Length; i++)
+            {
+                cbTexts[i].text = colorNames[Array.IndexOf(lightColors, ledLights[i].color)].ElementAt(0).ToString();
+            }
+        }
     }
 
     void PickType()
@@ -884,20 +949,32 @@ public class passcodesScript : MonoBehaviour {
         {
             passcodeType = 1;
         }
+        if (passcodeType == 1)
+        {
+            Debug.LogFormat("[Passcodes #{0}] Selected Type: 4-Digit Passcode", moduleId);
+        }
+        else
+        {
+            Debug.LogFormat("[Passcodes #{0}] Selected Type: 6-Digit Passcode", moduleId);
+        }
     }
 
     void ButtonPress(KMSelectable button)
     {
         if (!moduleSolved)
         {
-            GetComponent<KMAudio>().PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonPress, transform);
+            GetComponent<KMAudio>().PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonPress, button.transform);
             button.AddInteractionPunch();
-            GetComponent<KMAudio>().PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonRelease, transform);
+            GetComponent<KMAudio>().PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonRelease, button.transform);
             correctPlayer = CheckIfAnswerCorrect(passcodeType, currentDigit, button);
             if (correctPlayer && (maxDigit > currentDigit))
             {
                 currentDigit += 1;
                 ledLights[currentDigit - 1].color = lightColors[0];
+                if (colorblindActive)
+                {
+                    cbTexts[currentDigit - 1].text = colorNames[Array.IndexOf(lightColors, ledLights[currentDigit - 1].color)].ElementAt(0).ToString();
+                }
                 leds[currentDigit - 1].material = ledOptions[0];
             }
             else if (correctPlayer && (maxDigit == currentDigit))
@@ -916,6 +993,13 @@ public class passcodesScript : MonoBehaviour {
                 ledLights[3].color = lightColors[3];
                 ledLights[4].color = lightColors[3];
                 ledLights[5].color = lightColors[3];
+                if (colorblindActive)
+                {
+                    for (int i = 0; i < cbTexts.Length; i++)
+                    {
+                        cbTexts[i].text = colorNames[Array.IndexOf(lightColors, ledLights[i].color)].ElementAt(0).ToString();
+                    }
+                }
                 backBoard.GetComponent<MeshRenderer>().material = backboardOption;
             }
             else
@@ -931,9 +1015,9 @@ public class passcodesScript : MonoBehaviour {
         }
         else
         {
-            GetComponent<KMAudio>().PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, transform);
+            GetComponent<KMAudio>().PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, button.transform);
             button.AddInteractionPunch(0.25f);
-            GetComponent<KMAudio>().PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonRelease, transform);
+            GetComponent<KMAudio>().PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonRelease, button.transform);
         }
     }
 
@@ -1127,18 +1211,188 @@ public class passcodesScript : MonoBehaviour {
 
             if (correctAnswers6[stage] == answerGuess)
             {
-                Debug.Log("[Passcodes #" + moduleId + "] Answered " + tempText + " which means " + answerGuess + " which is correct!");
+                Debug.LogFormat("[Passcodes #{0}] Answered {1} which means {2} which is correct!", moduleId, tempText.ToUpper(), answerGuess);
                 return true;
             }
         }
         if (type == 1)
         {
-            Debug.Log("[Passcodes #" + moduleId + "] Answered " + tempText + " which means " + answerGuess + " which is INCORRECT!!! Correct answer was " + correctAnswers4[stage-1] + ".");
+            Debug.LogFormat("[Passcodes #{0}] Answered {1} which means {2} which is INCORRECT!!! Correct answer was {3}.", moduleId, tempText.ToUpper(), answerGuess, correctAnswers4[stage-1]);
         }
         if (type == 0)
         {
-            Debug.Log("[Passcodes #" + moduleId + "] Answered " + tempText + " which means " + answerGuess + " which is INCORRECT!!! Correct answer was " + correctAnswers6[stage] + ".");
+            Debug.LogFormat("[Passcodes #{0}] Answered {1} which means {2} which is INCORRECT!!! Correct answer was {3}.", moduleId, tempText.ToUpper(), answerGuess, correctAnswers6[stage]);
         }
         return false;
+    }
+
+    //twitch plays
+    #pragma warning disable 414
+    private readonly string TwitchHelpMessage = @"!{0} press ABC [Presses the buttons with the labels 'A', 'B', and 'C'] | !{0} press A at # [Presses the button labeled 'A' when the bomb's tens digit is '#'] | !{0} colorblind [Toggles colorblind mode]";
+    #pragma warning restore 414
+    IEnumerator ProcessTwitchCommand(string command)
+    {
+        if (Regex.IsMatch(command, @"^\s*colorblind\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            yield return null;
+            if (colorblindActive)
+            {
+                colorblindActive = false;
+                for (int i = 0; i < cbTexts.Length; i++)
+                {
+                    cbTexts[i].text = "";
+                }
+            }
+            else
+            {
+                colorblindActive = true;
+                for (int i = 0; i < cbTexts.Length; i++)
+                {
+                    cbTexts[i].text = colorNames[Array.IndexOf(lightColors, ledLights[i].color)].ElementAt(0).ToString();
+                }
+            }
+            yield break;
+        }
+        string[] parameters = command.Split(' ');
+        if (Regex.IsMatch(parameters[0], @"^\s*press\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            yield return null;
+            if (parameters.Length > 4)
+            {
+                yield return "sendtochaterror Too many parameters!";
+            }
+            else if (parameters.Length == 4)
+            {
+                string[] alpha = new string[] { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z" };
+                List<string> valids = new List<string>();
+                for (int i = 1; i < 10; i++)
+                {
+                    valids.Add(FindButtonText(i));
+                }
+                valids.Add(FindButtonText(0));
+                for (int i = 0; i < parameters[1].Length; i++)
+                {
+                    if (!alpha.Contains((parameters[1].ElementAt(i) + "").ToLower()))
+                    {
+                        yield return "sendtochaterror The specified label to press '" + parameters[1].ElementAt(i) + "' is invalid!";
+                        yield break;
+                    }
+                }
+                for (int i = 0; i < parameters[1].Length; i++)
+                {
+                    if (!valids.Contains((parameters[1].ElementAt(i) + "").ToLower()))
+                    {
+                        yield return "sendtochaterror The specified label to press '" + parameters[1].ElementAt(i) + "' is not an option on the module!";
+                        yield break;
+                    }
+                }
+                int temp = 0;
+                if (int.TryParse(parameters[3], out temp))
+                {
+                    if (temp < 0 || temp > 5)
+                    {
+                        yield return "sendtochaterror The specified tens digit to press the button(s) at '" + parameters[3] + "' is out of range 0-5!";
+                        yield break;
+                    }
+                    if ((int)bomb.GetTime() % 60 / 10 < temp && 59 - (temp * 10) + 9 + ((int)bomb.GetTime() % 60) > 15 || (int)bomb.GetTime() % 60 / 10 > temp && (int)bomb.GetTime() % 60 - ((temp * 10) + 9) > 15)
+                    {
+                        yield return "waiting music";
+                    }
+                    while (temp != (int)bomb.GetTime() % 60 / 10) { yield return "trycancel Stopped waiting for button press due to a request to cancel!"; }
+                    yield return "end waiting music";
+                    for (int i = 0; i < parameters[1].Length; i++)
+                    {
+                        buttons[valids.IndexOf((parameters[1].ElementAt(i) + "").ToLower())].OnInteract();
+                        yield return new WaitForSeconds(0.1f);
+                    }
+                }
+                else
+                {
+                    yield return "sendtochaterror The specified tens digit to press the button(s) at '" + parameters[3] + "' is invalid!";
+                }
+            }
+            else if (parameters.Length == 3)
+            {
+                if (parameters[2].EqualsIgnoreCase("at"))
+                    yield return "sendtochaterror Please specify the tens digit in the bomb's timer to press the button(s) at!";
+                else
+                    yield return "sendtochaterror Unrecognized parameter '"+parameters[2]+"', expected 'at'!";
+            }
+            else if (parameters.Length == 2)
+            {
+                string[] alpha = new string[] { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z" };
+                List<string> valids = new List<string>();
+                for (int i = 1; i < 10; i++)
+                {
+                    valids.Add(FindButtonText(i));
+                }
+                valids.Add(FindButtonText(0));
+                for (int i = 0; i < parameters[1].Length; i++)
+                {
+                    if (!alpha.Contains((parameters[1].ElementAt(i) + "").ToLower()))
+                    {
+                        yield return "sendtochaterror The specified label to press '" + parameters[1].ElementAt(i) + "' is invalid!";
+                        yield break;
+                    }
+                }
+                for (int i = 0; i < parameters[1].Length; i++)
+                {
+                    if (!valids.Contains((parameters[1].ElementAt(i) + "").ToLower()))
+                    {
+                        yield return "sendtochaterror The specified label to press '" + parameters[1].ElementAt(i) + "' is not an option on the module!";
+                        yield break;
+                    }
+                }
+                for (int i = 0; i < parameters[1].Length; i++)
+                {
+                    buttons[valids.IndexOf((parameters[1].ElementAt(i) + "").ToLower())].OnInteract();
+                    yield return new WaitForSeconds(0.1f);
+                }
+            }
+            else if (parameters.Length == 1)
+            {
+                yield return "sendtochaterror Please specify the button(s) you wish to press!";
+            }
+            yield break;
+        }
+    }
+
+    IEnumerator TwitchHandleForcedSolve()
+    {
+        int start = 0;
+        int end = 0;
+        if (passcodeType == 1)
+        {
+            start = currentDigit - 1;
+            end = 4;
+        }
+        else
+        {
+            start = currentDigit;
+            end = 6;
+        }
+        string[] modletters = new string[] { nmbrLttr0, nmbrLttr1, nmbrLttr2, nmbrLttr3, nmbrLttr4, nmbrLttr5, nmbrLttr6, nmbrLttr7, nmbrLttr8, nmbrLttr9 };
+        for (int i = start; i < end; i++)
+        {
+            string letter = "";
+            if (passcodeType == 1)
+            {
+                letter = modletters[correctAnswers4[i]];
+            }
+            else
+            {
+                letter = modletters[correctAnswers6[i]];
+            }
+            int[] positions = new int[] { 9, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+            for (int j = 0; j < 10; j++)
+            {
+                if (buttonsText[j].text.Equals(letter))
+                {
+                    buttons[positions[j]].OnInteract();
+                    break;
+                }
+            }
+            yield return new WaitForSeconds(0.1f);
+        }
     }
 }
