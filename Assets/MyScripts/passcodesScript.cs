@@ -730,7 +730,7 @@ public class passcodesScript : MonoBehaviour {
     {
         timeInSeconds = TimeSpan.FromSeconds((int)bomb.GetTime());
         decasecondOnClock = (int)((float)timeInSeconds.Seconds / (float)10);
-        if (numberOfRelevantInd == 1 || numberOfRelevantInd == 2 && decasecondOnClock != 5)
+        if ((numberOfRelevantInd == 1 || numberOfRelevantInd == 2) && decasecondOnClock != 5)
         {
             decasecondOnClock = decasecondOnClock * 2;
         }
@@ -1115,7 +1115,7 @@ public class passcodesScript : MonoBehaviour {
 
             if (correctAnswers4[stage-1] == answerGuess)
             {
-                Debug.Log("[Passcodes #" + moduleId + "] Answered " + tempText + " which means " + answerGuess + " which is correct!");
+                Debug.LogFormat("[Passcodes #{0}] Answered {1} which means {2} which is correct!", moduleId, tempText.ToUpper(), answerGuess);
                 return true;
             }
         }
