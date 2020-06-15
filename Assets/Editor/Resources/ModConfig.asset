@@ -14,16 +14,9 @@ MonoBehaviour:
   id: xtrpasscodes
   title: Passcodes
   author: Xtrouble835
-  description: 'Passcodes.
-
-    There''s 3 of those and 2 of these so it''s 5, which is ''S''... Oh come on, I
-    forgot to subtract one!
-
-    v1.4
-
-    ID: "xtrpasscodes"
-
-    Created by: Xtrouble835'
-  version: 1.4
+  description: "Passcodes.\r\nThere's 3 of those and 2 of these so it's 5, which is
+    'S'... Oh come on, I forgot to subtract one!\r\nv1.7\nNow with TP support! (thanks
+    to eXish)\r\nID: \"xtrpasscodes\"\r\nCreated by: Xtrouble835"
+  version: 1.7
   outputFolder: build
   previewImage: {fileID: 2800000, guid: 612ebd0fe2130f947befef72cfb8ac7a, type: 3}
