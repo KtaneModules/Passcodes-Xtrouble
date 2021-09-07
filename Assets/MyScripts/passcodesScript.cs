@@ -89,6 +89,7 @@ public class passcodesScript : MonoBehaviour {
     private int maxDigit = 0;
 
     private bool colorblindActive;
+    private bool lightsScaled;
 
     static int moduleIdCounter = 1;
     int moduleId;
@@ -114,6 +115,13 @@ public class passcodesScript : MonoBehaviour {
 
     void Start()
     {
+        if (!lightsScaled)
+        {
+            lightsScaled = true;
+            float scalar = transform.lossyScale.x;
+            for (int i = 0; i < 6; i++)
+                ledLights[i].range *= scalar;
+        }
         PickType();
         ResetLights();
         DetermineListOfUse();
@@ -848,7 +856,7 @@ public class passcodesScript : MonoBehaviour {
         }
         else
         {
-            correctAnswers4[0] = bomb.GetBatteryCount();
+            correctAnswers4[0] = bomb.GetBatteryCount() % 10;
             correctAnswers4[1] = secondDigit;
             tempDigit3for4 = bomb.GetBatteryCount(Battery.AA) + bomb.GetPortCount(Port.PS2) + 2;
             if (tempDigit3for4 > 9)
